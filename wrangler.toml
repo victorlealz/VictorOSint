@@ -1,3 +1,11 @@
 name = "osint-policial"
+main = "worker.js"
 compatibility_date = "2026-01-01"
-pages_build_output_dir = "."
+
+# Workers Static Assets — serve os arquivos de /public diretamente.
+# Isso substitui o Cloudflare Pages: a implantação e feita como um
+# Worker tradicional (`wrangler deploy`), evitando o fluxo de build
+# automatico do Pages (e o erro de autenticacao de API associado a ele).
+[assets]
+directory = "./public"
+binding = "ASSETS"

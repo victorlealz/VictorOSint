@@ -18,15 +18,27 @@ ela está aberta; ao atualizar ou fechar a página, tudo desaparece.
 
 ```
 /
-├── index.html                    # interface (formulário + tabela de resultados)
-├── style.css                     # estilos (tema branco/minimalista)
-├── app.js                        # motor de pesquisa + exportação PDF/XLSX
-├── knowledge/
-│   ├── knowledge-base.js         # fontes/URLs por categoria de identificador
-│   └── skill-rules.js            # textos/rótulos/metodologia (SKILL)
-├── README.md
-└── wrangler.toml                 # configuração de publicação no Cloudflare Pages
+├── worker.js                     # entry point do Cloudflare Worker (serve /public)
+├── wrangler.toml                 # configuração do Worker + binding de assets estáticos
+├── public/                       # tudo aqui é servido como arquivo estático
+│   ├── index.html                # interface (formulário + tabela de resultados)
+│   ├── style.css                 # estilos (tema branco/minimalista)
+│   ├── app.js                    # motor de pesquisa + exportação PDF/XLSX
+│   └── knowledge/
+│       ├── knowledge-base.js     # fontes/URLs por categoria de identificador
+│       └── skill-rules.js        # textos/rótulos/metodologia (SKILL)
+└── README.md
 ```
+
+> **Nota sobre a implantação:** este projeto é publicado como um
+> **Cloudflare Worker tradicional** (`wrangler deploy`), usando o recurso
+> **Workers Static Assets** para servir a pasta `public/`, e **não** como
+> um projeto do Cloudflare Pages. Isso evita o fluxo de build/deploy
+> automático do Pages (que exige um token de API com escopo específico
+> para `pages_write` e pode falhar com erros de autenticação como
+> `Authentication error [code: 10000]`). Com `wrangler deploy`, a
+> implantação usa o mesmo token/login já autenticado localmente ou no
+> pipeline de CI, sem depender de permissões extras do Pages.
 
 A lógica é intencionalmente separada em duas camadas, como pedido:
 
@@ -80,33 +92,66 @@ cadeia de custódia incluído nas exportações.
 
 ## Rodando localmente
 
-Não há build step. Basta servir os arquivos estáticos:
+Opção 1 — com Wrangler (mais fiel ao ambiente de produção, testa o Worker real):
 
 ```bash
+npm install -g wrangler
+wrangler dev
+```
+
+Opção 2 — servindo só os arquivos estáticos (sem passar pelo Worker):
+
+```bash
+cd public
 npx serve .
 # ou
 python3 -m http.server 8080
 ```
 
-Depois abra `http://localhost:8080` (ou a porta indicada).
+Depois abra o endereço indicado pelo terminal (`http://localhost:8080` ou
+a porta que o Wrangler mostrar).
 
-## Publicando no Cloudflare Pages
+## Publicando (Cloudflare Workers — implantação tradicional)
 
-### Opção A — via dashboard
-1. Suba esta pasta para um repositório no GitHub.
-2. No Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** →
-   **Connect to Git**.
-3. Selecione o repositório. Build command: (nenhum). Output directory: `/`.
-4. Deploy.
+Este projeto usa **Workers + Static Assets**, não Cloudflare Pages.
+A diferença prática: não existe etapa de "build" gerenciada pela
+Cloudflare nem um projeto separado de Pages — é um `wrangler deploy`
+direto, como qualquer outro Worker.
 
-### Opção B — via Wrangler CLI
+### Pré-requisitos
 ```bash
 npm install -g wrangler
-wrangler pages deploy . --project-name osint-policial
+wrangler login
+# ou, em CI: defina a variável de ambiente CLOUDFLARE_API_TOKEN
+# com um token que tenha permissão "Edit Cloudflare Workers"
+# (escopo de Workers, não o escopo específico de Pages)
 ```
 
-`wrangler.toml` já está configurado para publicação estática (sem Worker
-de backend — não é necessário, pois todo processamento é client-side).
+### Deploy
+```bash
+wrangler deploy
+```
+
+Isso publica o `worker.js` (que serve os arquivos de `public/` via o
+binding `ASSETS` definido em `wrangler.toml`) diretamente na sua conta,
+sem passar pelo fluxo de build automático do Pages — foi justamente esse
+fluxo que causava o erro:
+
+```
+✘ Authentication error [code: 10000]
+```
+
+visto que o token usado não tinha o escopo `pages_write` exigido pelo
+comando `wrangler pages deploy`. Com `wrangler deploy` (Workers), o
+mesmo token de API com permissão de Workers (`Edit Cloudflare Workers`)
+já é suficiente.
+
+### Verificando
+Após o deploy, o Wrangler mostra a URL pública do Worker
+(`https://osint-policial.<sua-subdomain>.workers.dev`). Se quiser um
+domínio próprio, adicione uma rota (`routes`) ou um domínio customizado
+pelo dashboard em **Workers & Pages → osint-policial → Settings →
+Domains & Routes**.
 
 ## Exportação
 
