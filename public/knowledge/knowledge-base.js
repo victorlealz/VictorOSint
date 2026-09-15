@@ -31,7 +31,7 @@ const OSINT_KB = {
     version: "3.0",
     updated: "2026",
     disclaimer:
-      "Conteúdo destinado exclusivamente a profissionais de segurança pública, investigação criminal, perícia digital, Ministério Público, Poder Judiciário, advocacia, pesquisa acadêmica e cibersegurança corporativa. O uso sem autorização legal pertinente pode configurar crime (LGPD, Marco Civil da Internet, Código Penal, Lei 12.850/2013, Lei 13.709/2018).",
+      "Conteúdo destinado exclusivamente a profissionais de segurança pública autorizados.",
   },
 
   categories: [
